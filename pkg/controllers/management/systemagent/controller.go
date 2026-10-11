@@ -150,6 +150,10 @@ func Register(ctx context.Context, w *wrangler.Context, manager *clustermanager.
 	w.Mgmt.Cluster().OnChange(ctx, "imported-system-agent-setup", h.onChange)
 }
 
+func isHarvester(cluster *apimgmtv3.Cluster) bool {
+	return cluster.Status.Info != nil && cluster.Status.Info.MachineProvider == "harvester"
+}
+
 // shouldInstall matches the historical scope of this controller: imported RKE2/K3s and
 // imported CAPR-backed RKE2/K3s clusters, while skipping provisioned/administrated clusters.
 func shouldInstall(cluster *apimgmtv3.Cluster) bool {
@@ -165,7 +169,7 @@ func shouldInstall(cluster *apimgmtv3.Cluster) bool {
 		return false
 	}
 
-	if cluster.Status.Info.MachineProvider == "harvester" {
+	if isHarvester(cluster) {
 		return false
 	}
 
@@ -226,7 +230,7 @@ func (h *handler) onChange(_ string, cluster *apimgmtv3.Cluster) (*apimgmtv3.Clu
 
 	// Imported Harvester clusters have their own system-agent which Rancher's conflicts with.
 	// Additionally, the required CAPI information is not exposed to Rancher.
-	if cluster.Status.Info.MachineProvider == "harvester" &&
+	if isHarvester(cluster) &&
 		cluster.Annotations["provisioning.cattle.io/administrated"] != "true" &&
 		(cluster.Annotations == nil || cluster.Annotations[day2OpsEnabledAnnotation] != "false") {
 		cluster := cluster.DeepCopy()
